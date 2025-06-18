@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/*.py": {
+    "api/generate-emoji.py": {
       "runtime": "@vercel/python"
     }
   }
