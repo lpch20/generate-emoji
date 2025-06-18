@@ -50,144 +50,64 @@ def authenticate_request(request):
         return False, f"Error en autenticación: {str(e)}"
 
 def generate_random_prompt():
-    """Generar prompt completamente aleatorio para emojis"""
+    """Generar prompt aleatorio optimizado para UN SOLO emoji"""
     
-    # Categorías de elementos para combinar
-    animals = [
-        "gato", "perro", "oso", "conejo", "zorro", "león", "tigre", "elefante", 
-        "mono", "panda", "koala", "pingüino", "delfín", "ballena", "pez", "pulpo",
-        "mariposa", "abeja", "pájaro", "águila", "búho", "gallina", "pato", "rana",
-        "serpiente", "tortuga", "caracol", "murciélago", "ardilla", "hamster"
+    # Tipos de prompts más específicos para UN SOLO emoji
+    prompt_types = [
+        "simple_emotion",
+        "single_object", 
+        "animal_face",
+        "food_item",
+        "transport",
+        "nature_single"
     ]
     
-    objects = [
-        "corazón", "estrella", "sol", "luna", "nube", "arcoíris", "fuego", "agua",
-        "flor", "árbol", "casa", "coche", "avión", "barco", "bicicleta", "tren",
-        "pizza", "hamburguesa", "helado", "pastel", "café", "té", "cerveza", "vino",
-        "teléfono", "computadora", "libro", "música", "película", "juego", "pelota",
-        "regalo", "globo", "bandera", "corona", "diamante", "llave", "bomba"
-    ]
+    prompt_type = random.choice(prompt_types)
     
-    emotions = [
-        "feliz", "triste", "enojado", "sorprendido", "enamorado", "cansado", "dormido",
-        "loco", "genial", "cool", "tímido", "valiente", "asustado", "relajado", "estresado",
-        "emocionado", "aburrido", "confundido", "determinado", "orgulloso", "avergonzado"
-    ]
-    
-    actions = [
-        "bailando", "cantando", "corriendo", "saltando", "volando", "nadando", "durmiendo",
-        "comiendo", "bebiendo", "jugando", "trabajando", "estudiando", "riendo", "llorando",
-        "pensando", "soñando", "meditando", "ejercitándose", "cocinando", "leyendo"
-    ]
-    
-    styles = [
-        "ninja", "pirata", "robot", "zombie", "superhéroe", "vikingo", "samurai", "mago",
-        "chef", "doctor", "artista", "músico", "deportista", "detective", "astronauta",
-        "cowboy", "princesa", "rey", "guerrero", "científico", "hippie", "punk"
-    ]
-    
-    colors = [
-        "rojo", "azul", "verde", "amarillo", "rosa", "morado", "naranja", "negro",
-        "blanco", "dorado", "plateado", "turquesa", "violeta", "marrón", "gris"
-    ]
-    
-    modifiers = [
-        "pequeño", "grande", "gigante", "mini", "súper", "ultra", "mega", "micro",
-        "brillante", "oscuro", "transparente", "metálico", "peludo", "suave", "duro"
-    ]
-    
-    foods = [
-        "pizza", "hamburguesa", "helado", "pastel", "donut", "taco", "sushi", "ramen", 
-        "croissant", "manzana", "banana", "fresa", "sandía", "piña", "uva", "naranja"
-    ]
-    
-    weather = [
-        "soleado", "lluvioso", "nevado", "nublado", "tormentoso", "ventoso", "brumoso"
-    ]
-    
-    # Tipo de emoji aleatorio
-    emoji_type = random.choice([
-        "animal", "object", "food", "face", "activity", "fantasy", "weather", "mixed"
-    ])
-    
-    if emoji_type == "animal":
-        animal = random.choice(animals)
-        emotion = random.choice(emotions)
-        if random.random() < 0.5:
-            modifier = random.choice(modifiers)
-            return f"{modifier} {animal} {emotion}"
-        else:
-            action = random.choice(actions)
-            return f"{animal} {emotion} {action}"
-            
-    elif emoji_type == "object":
-        obj = random.choice(objects)
-        color = random.choice(colors)
-        modifier = random.choice(modifiers)
-        return f"{color} {modifier} {obj}"
+    if prompt_type == "simple_emotion":
+        emotions = ["happy", "sad", "angry", "surprised", "love", "sleepy", "cool", "shy", "excited", "confused"]
+        return f"{random.choice(emotions)} face"
         
-    elif emoji_type == "food":
-        food = random.choice(foods)
-        emotion = random.choice(emotions)
-        return f"{food} {emotion}"
+    elif prompt_type == "single_object":
+        objects = ["heart", "star", "sun", "moon", "cloud", "flower", "apple", "pizza slice", "key", "crown"]
+        colors = ["red", "blue", "yellow", "green", "purple", "orange", "pink", "golden"]
+        return f"{random.choice(colors)} {random.choice(objects)}"
         
-    elif emoji_type == "face":
-        emotion = random.choice(emotions)
-        style = random.choice(styles)
-        return f"cara {emotion} de {style}"
+    elif prompt_type == "animal_face":
+        animals = ["cat", "dog", "bear", "rabbit", "fox", "panda", "lion", "tiger", "owl", "frog"]
+        return f"{random.choice(animals)} face"
         
-    elif emoji_type == "activity":
-        action = random.choice(actions)
-        animal = random.choice(animals)
-        return f"{animal} {action}"
+    elif prompt_type == "food_item":
+        foods = ["pizza slice", "hamburger", "ice cream", "donut", "apple", "banana", "coffee cup", "taco", "cookie"]
+        return random.choice(foods)
         
-    elif emoji_type == "fantasy":
-        style = random.choice(styles)
-        animal = random.choice(animals)
-        color = random.choice(colors)
-        return f"{color} {animal} {style}"
+    elif prompt_type == "transport":
+        vehicles = ["car", "airplane", "boat", "bicycle", "train", "bus", "rocket"]
+        colors = ["red", "blue", "yellow", "green", "white"]
+        return f"{random.choice(colors)} {random.choice(vehicles)}"
         
-    elif emoji_type == "weather":
-        weather_type = random.choice(weather)
-        obj = random.choice(objects[:10])  # Solo algunos objetos
-        return f"{obj} {weather_type}"
-        
-    else:  # mixed - súper aleatorio
-        elements = []
-        elements.append(random.choice(colors))
-        elements.append(random.choice(animals + objects[:10]))
-        elements.append(random.choice(emotions + actions))
-        if random.random() < 0.3:
-            elements.append(random.choice(styles))
-        return " ".join(elements)
+    else:  # nature_single
+        nature = ["tree", "flower", "leaf", "mushroom", "cactus", "rose", "tulip"]
+        colors = ["green", "red", "yellow", "pink", "blue", "purple"]
+        return f"{random.choice(colors)} {random.choice(nature)}"
 
 def enhance_emoji_prompt(base_prompt):
-    """Mejorar prompt para generar UN SOLO emoji"""
-    enhancements = [
-        "single cute emoji",
-        "one simple flat design emoji", 
-        "single colorful emoji icon",
-        "one clean emoji design",
-        "single modern emoji",
-        "one kawaii emoji",
-        "single flat emoji design",
-        "one simple emoji icon"
-    ]
+    """Prompt ULTRA específico para generar SOLO UN emoji"""
     
-    styles = [
-        "centered composition",
-        "single character design",
-        "isolated single emoji", 
-        "one emoji only",
-        "solo emoji design",
-        "single round emoji"
-    ]
+    # Comando principal MEGA específico
+    main_command = f"Generate exactly ONE emoji of {base_prompt}"
     
-    enhancement = random.choice(enhancements)
-    style = random.choice(styles)
+    # Especificaciones técnicas
+    tech_specs = "single character, centered composition, white background, 3D cartoon style"
     
-    # 🔥 PROMPT MEJORADO - Enfatiza "UNO SOLO"
-    return f"{enhancement} of {base_prompt}, {style}, single emoji, one character only, centered, white background, isolated, 3D rendered, not multiple emojis, just one emoji"
+    # Negaciones MÚLTIPLES y agresivas
+    negations = "NOT multiple emojis, NOT a collection, NOT a pattern, NOT many characters, NOT several emojis, NOT a grid, NOT repetition"
+    
+    # Estructura específica
+    structure = "round emoji design, isolated single character, one emoji only"
+    
+    # PROMPT FINAL MEGA ESPECÍFICO
+    return f"{main_command}, {structure}, {tech_specs}, {negations}, exactly one emoji, solo character, individual emoji face"
 
 def load_emoji_history():
     """Cargar historial desde archivo temporal"""
