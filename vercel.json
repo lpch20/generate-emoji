@@ -1,14 +1,7 @@
 {
-  "builds": [
-    {
-      "src": "api/generate-emoji.py",
-      "use": "@vercel/python"
+  "functions": {
+    "api/generate-emoji.py": {
+      "runtime": "@vercel/python@4.3.0"
     }
-  ],
-  "routes": [
-    {
-      "src": "/api/generate-emoji",
-      "dest": "api/generate-emoji.py"
-    }
-  ]
+  }
 }
