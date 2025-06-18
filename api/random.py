@@ -162,31 +162,32 @@ def generate_random_prompt():
         return " ".join(elements)
 
 def enhance_emoji_prompt(base_prompt):
-    """Mejorar prompt para emojis"""
+    """Mejorar prompt para generar UN SOLO emoji"""
     enhancements = [
-        "cute emoji style",
-        "simple flat design emoji", 
-        "colorful emoji icon",
-        "clean emoji design",
-        "modern emoji style",
-        "kawaii emoji",
-        "flat emoji design",
-        "simple emoji icon"
+        "single cute emoji",
+        "one simple flat design emoji", 
+        "single colorful emoji icon",
+        "one clean emoji design",
+        "single modern emoji",
+        "one kawaii emoji",
+        "single flat emoji design",
+        "one simple emoji icon"
     ]
     
     styles = [
-        "yellow round face",
-        "simple geometric shapes",
-        "bright colors", 
-        "clean lines",
-        "flat design",
-        "minimalist style"
+        "centered composition",
+        "single character design",
+        "isolated single emoji", 
+        "one emoji only",
+        "solo emoji design",
+        "single round emoji"
     ]
     
     enhancement = random.choice(enhancements)
     style = random.choice(styles)
     
-    return f"{enhancement}, {base_prompt}, {style}, emoji art, digital illustration, white background, isolated, 3D rendered"
+    # 🔥 PROMPT MEJORADO - Enfatiza "UNO SOLO"
+    return f"{enhancement} of {base_prompt}, {style}, single emoji, one character only, centered, white background, isolated, 3D rendered, not multiple emojis, just one emoji"
 
 def load_emoji_history():
     """Cargar historial desde archivo temporal"""
