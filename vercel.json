@@ -1,16 +1,13 @@
 {
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python@4.3.0"
+  "functions": {
+    "api/index.py": {
+      "runtime": "@vercel/python@4.3.0"
     },
-    {
-      "src": "api/stats.py", 
-      "use": "@vercel/python@4.3.0"
+    "api/stats.py": {
+      "runtime": "@vercel/python@4.3.0"
     },
-    {
-      "src": "api/generate.py",
-      "use": "@vercel/python@4.3.0"
+    "api/generate.py": {
+      "runtime": "@vercel/python@4.3.0"
     }
-  ]
+  }
 }
