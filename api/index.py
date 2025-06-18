@@ -15,6 +15,7 @@ class handler(BaseHTTPRequestHandler):
             'endpoints': {
                 'GET /api/stats': 'Obtener estadísticas (requiere auth)',
                 'POST /api/generate': 'Generar emoji (requiere auth)'
+                'POST /api/random': 'Generar emoji (requiere auth)'
             },
             'auth': 'Basic Auth requerida'
         }

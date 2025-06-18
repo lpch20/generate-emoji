@@ -1,3 +1,4 @@
+
 {
   "functions": {
     "api/index.py": {
@@ -7,6 +8,9 @@
       "runtime": "@vercel/python@4.3.0"
     },
     "api/generate.py": {
+      "runtime": "@vercel/python@4.3.0"
+    },
+    "api/random.py": {
       "runtime": "@vercel/python@4.3.0"
     }
   }
