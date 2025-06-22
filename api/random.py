@@ -10,13 +10,6 @@ from datetime import datetime
 import urllib.request
 import urllib.parse
 
-NEGATIVE_PROMPT = (
-    "multiple emojis, collage, mosaic, pattern, tiling, repeating elements, "
-    "busy background, bordered frame, text, watermark, signature, gradient, "
-    "noise, artifacts, disfigured, cropped, blurry, out of frame"
-)
-
-
 def generate_emoji_id():
     """Generar ID único para emoji"""
     timestamp = str(int(time.time() * 1000))
@@ -87,16 +80,19 @@ def generate_random_prompt():
 
 def enhance_emoji_prompt(base_prompt: str) -> str:
     """
-    Devuelve el prompt positivo y el negativo;
-    el negativo se envía aparte a Replicate para bloquear decoraciones.
+    Prompt ULTRA-específico para forzar 1 (y solo 1) emoji:
+      • Macro shot de un único personaje
+      • Fondo blanco o transparente
+      • Cartoon / 3D, iluminación suave
+      • Prohibido mosaicos, patrones o grupos
     """
-    positive = (
-        f"Ultra‐detailed 3D cartoon emoji, single centred character, "
-        f"{base_prompt}, ride-hailing automobile theme, "
-        "plain pure-white background, smooth soft shadows, high-res, "
-        "no outline, no border"
+    return (
+        f"EXTREME CLOSE-UP macro shot of ONE single emoji: {base_prompt}. "
+        "Centered, full frame, no crop, white background, 3D cartoon render, soft shadows, "
+        "high resolution, vibrant colors. "
+        "Do NOT create multiple objects, NO tiled pattern, NO grid, NO collage, "
+        "NO duplicated elements — exactly ONE centred emoji character."
     )
-    return positive, NEGATIVE_PROMPT
 
 def load_emoji_history():
     """Cargar historial desde archivo temporal"""
@@ -137,13 +133,11 @@ def call_replicate_api(prompt, enhanced_prompt):
     # Payload para Replicate
     payload = {
         "version": "5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
-          "input": {
-            "prompt": positive,
-            "negative_prompt": negative,          #  ⬅️  nuevo
+        "input": {
+            "prompt": enhanced_prompt,
             "aspect_ratio": "1:1",
             "num_outputs": 1,
-            "num_inference_steps": 2,            #  ⬇️  menos pasos → menos inventiva
-            "guidance_scale": 9,                 #  empuja a seguir el prompt
+            "num_inference_steps": 4,
             "output_format": "webp"
         }
     }
