@@ -380,7 +380,6 @@
 #             }
 #             self.wfile.write(json.dumps(error_response).encode())
 #             return
-
 # api/random.py - Endpoint para generar emojis aleatorios de CAUTOS
 from http.server import BaseHTTPRequestHandler
 import json
@@ -435,43 +434,26 @@ def authenticate_request(request):
 def generate_random_prompt():
     """
     Genera una descripción específica para emojis de CAUTOS
-    relacionados con transporte y la app tipo Uber
+    UN SOLO auto con características específicas
     """
-    # Conceptos relacionados con CAUTOS (app tipo Uber)
-    transport_concepts = [
-        "car with smartphone app interface",
-        "taxi with mobile notification",
-        "ride-sharing vehicle with GPS pin",
-        "urban car with location marker",
-        "smartphone with car icon",
-        "driver giving thumbs up in car",
-        "passenger rating 5 stars",
-        "car with route navigation",
-        "city taxi with app logo",
-        "car with pickup location pin",
-        "mobile payment for ride",
-        "car arriving notification",
-        "driver and passenger handshake",
-        "car with estimated time arrival",
-        "urban transportation app icon",
-        "car with safety badge",
-        "eco-friendly ride vehicle",
-        "car with discount tag",
-        "night ride city car",
-        "car with luggage compartment"
+    # Tipos de autos específicos para CAUTOS
+    car_types = [
+        "compact sedan", "modern hatchback", "urban SUV", "electric vehicle", 
+        "city car", "eco taxi", "ride-share car", "smart car"
     ]
     
-    # Colores corporativos y profesionales
-    colors = [
-        "modern blue", "professional green", "corporate orange", 
-        "clean white", "elegant black", "tech purple", "fresh cyan",
-        "warm yellow", "trust red", "premium silver"
+    # Colores de autos
+    car_colors = [
+        "bright yellow", "clean white", "modern blue", "silver metallic",
+        "electric green", "urban orange", "professional black", "taxi yellow"
     ]
     
-    # Estilos de emoji
-    styles = [
-        "friendly cartoon style", "professional 3D render", "clean minimalist design",
-        "modern flat design", "rounded cute style", "sleek tech style"
+    # Características específicas de CAUTOS
+    cautos_features = [
+        "with CAUTOS logo on door", "showing ride-share symbol", 
+        "with app interface display", "displaying 5-star rating",
+        "with GPS navigation active", "showing pickup location pin",
+        "with driver thumbs up visible", "displaying arrival time"
     ]
     
     hist = load_emoji_history()
@@ -479,43 +461,41 @@ def generate_random_prompt():
     
     # Intentar generar prompt único
     for _ in range(100):
-        concept = random.choice(transport_concepts)
-        color = random.choice(colors)
-        style = random.choice(styles)
+        car_type = random.choice(car_types)
+        car_color = random.choice(car_colors)
+        feature = random.choice(cautos_features)
         
-        prompt = f"{color} {concept} - {style} - CAUTOS branding"
+        prompt = f"single {car_color} {car_type} {feature}"
         
         if prompt not in used:
             return prompt
     
     # Si todo está usado, forzar unicidad con timestamp
-    fallback_concept = random.choice(transport_concepts)
-    fallback_color = random.choice(colors)
     timestamp = int(time.time())
-    return f"{fallback_color} {fallback_concept} - CAUTOS {timestamp}"
+    return f"single {random.choice(car_colors)} {random.choice(car_types)} CAUTOS {timestamp}"
 
 def enhance_emoji_prompt(base_prompt: str) -> str:
     """
-    Prompt ULTRA-específico para generar UN SOLO emoji centrado
-    con máxima claridad y especificidad
+    Prompt ULTRA-específico para generar UN SOLO auto emoji
+    con fondo color #82E6CC y máxima calidad
     """
     return (
-        f"Create a SINGLE emoji icon: {base_prompt}. "
-        "REQUIREMENTS: "
-        "- Exactly ONE emoji character only "
-        "- Perfect center positioning "
-        "- Clean white or transparent background "
-        "- High quality 3D cartoon rendering "
-        "- Vibrant professional colors "
-        "- Soft lighting and shadows "
-        "- Square aspect ratio 1:1 "
-        "- No duplicates, no patterns, no grids "
-        "- No multiple objects or elements "
-        "- No text or letters visible "
-        "- Professional app icon style "
-        "- Related to ride-sharing/transportation theme "
-        "FORBIDDEN: multiple emojis, tiled patterns, collages, backgrounds with other elements, "
-        "repeated objects, mosaic layouts, grid arrangements, multiple characters"
+        f"A single car emoji: {base_prompt}. "
+        "STRICT REQUIREMENTS: "
+        "- ONE car only, no duplicates "
+        "- Solid background color #82E6CC (light mint green) "
+        "- Car centered in frame "
+        "- High resolution 1024x1024 pixels "
+        "- 3D cartoon style with smooth surfaces "
+        "- Professional lighting with soft shadows "
+        "- Vibrant but clean colors "
+        "- Perfect emoji proportions "
+        "- No other objects in the image "
+        "- No patterns, no grids, no repetitions "
+        "- Square format 1:1 aspect ratio "
+        "ABSOLUTELY FORBIDDEN: multiple cars, car collections, parking lots, "
+        "traffic scenes, car groups, repeated elements, tiled layouts, "
+        "complex backgrounds, other vehicles, patterns, grids, collages"
     )
 
 def load_emoji_history():
@@ -549,23 +529,25 @@ def save_emoji_history(history):
         print(f"Error guardando historial: {e}")
 
 def call_replicate_api(prompt, enhanced_prompt):
-    """Llamar a Replicate API con configuración optimizada para emoji único"""
+    """Llamar a Replicate API con configuración optimizada para UN SOLO auto de alta calidad"""
     token = os.environ.get('REPLICATE_API_TOKEN')
     if not token:
         raise Exception('REPLICATE_API_TOKEN no configurado')
     
-    # Payload optimizado para generar un solo emoji
+    # Payload optimizado para generar UN SOLO auto de alta calidad
     payload = {
         "version": "5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
         "input": {
             "prompt": enhanced_prompt,
-            "negative_prompt": "multiple objects, pattern, grid, collage, tiled, repeated, duplicated, mosaic, many emojis, background elements, text, letters, words, numbers, multiple characters, group, collection, set, array, list, scattered, overlapping, crowded, busy, complex background, realistic photo, low quality, blurry, distorted",
+            "negative_prompt": "multiple cars, many vehicles, car lot, parking, traffic, car collection, pattern, grid, tiled, repeated, duplicated, mosaic, collage, group of cars, fleet, convoy, multiple objects, busy scene, crowd, scattered, overlapping, complex, realistic photo, low quality, blurry, pixelated, distorted, noisy, artifacts, compression, jpeg artifacts, low resolution",
             "aspect_ratio": "1:1",
             "num_outputs": 1,
-            "num_inference_steps": 6,  # Aumentado para mejor calidad
-            "guidance_scale": 8.5,     # Adherencia más fuerte al prompt
-            "output_format": "webp",
-            "output_quality": 95       # Máxima calidad
+            "num_inference_steps": 28,    # Aumentado significativamente para máxima calidad
+            "guidance_scale": 12,         # Aumentado para adherencia estricta al prompt
+            "output_format": "png",       # PNG para mejor calidad que webp
+            "output_quality": 100,        # Máxima calidad posible
+            "width": 1024,               # Resolución específica alta
+            "height": 1024
         }
     }
     
@@ -589,9 +571,9 @@ def call_replicate_api(prompt, enhanced_prompt):
     
     prediction_id = result['id']
     
-    # Polling para obtener resultado con más tiempo
-    for attempt in range(45):  # Aumentado el timeout
-        time.sleep(3)  # Más tiempo entre checks
+    # Polling para obtener resultado con tiempo suficiente para alta calidad
+    for attempt in range(60):  # Más tiempo para procesar alta calidad
+        time.sleep(4)  # Más tiempo entre checks para procesamiento completo
         
         status_req = urllib.request.Request(
             f'https://api.replicate.com/v1/predictions/{prediction_id}',
