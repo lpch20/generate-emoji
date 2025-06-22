@@ -395,170 +395,127 @@
 #             }
 #             self.wfile.write(json.dumps(error_response).encode())
 #             return
-
-# api/random.py - Endpoint para generar emojis automotrices únicos para CAUTOS
+# api/random.py – Endpoint para generar **UN** emoji automotriz único de CAUTOS
 from http.server import BaseHTTPRequestHandler
-import json
-import os
-import time
-import random
-import string
-import base64
+import json, os, time, random, string, base64, tempfile, shutil, urllib.request
 from datetime import datetime
-import urllib.request
-import urllib.parse
+from json.decoder import JSONDecodeError
 
-# ------------- Utilidades generales ------------- #
+# ─────────────────────────  Constantes  ──────────────────────────
+REPLICATE_VERSION = "5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637"
+HISTORY_FILE      = "/tmp/emoji_history.json"
+_EMPTY_HISTORY    = {"generated_prompts": [], "generated_emojis": [], "total_generated": 0}
 
-def generate_emoji_id():
-    """Generar ID único para el emoji"""
-    timestamp = str(int(time.time() * 1000))
-    rand_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=9))
-    return f"emoji_{timestamp}_{rand_str}"
+CAR_TYPES  = ["compact car", "sedan", "SUV", "electric car", "convertible",
+              "hatchback", "sports car", "pickup"]
+CAR_COLORS = ["cobalt blue", "sunset orange", "lime green", "ruby red",
+              "graphite grey", "pearl white", "midnight black", "taxi yellow"]
 
-def authenticate_request(request):
-    """Verificar autenticación básica (cabecera Authorization: Basic ...)"""
-    API_USERNAME = os.environ.get('API_USERNAME')
-    API_PASSWORD = os.environ.get('API_PASSWORD')
+# ─────────────────────────  Utilidades  ──────────────────────────
+def generate_emoji_id() -> str:
+    ts  = str(int(time.time() * 1000))
+    rnd = ''.join(random.choices(string.ascii_lowercase + string.digits, k=9))
+    return f"emoji_{ts}_{rnd}"
 
-    if not API_USERNAME or not API_PASSWORD:
-        return False, "Credenciales no configuradas en el servidor"
-
-    auth_header = (
-        request.headers.get('Authorization')
-        if hasattr(request, 'headers')
-        else request.environ.get('HTTP_AUTHORIZATION')
-    )
-
-    if not auth_header:
-        return False, "Header de autorización requerido"
-
-    if not auth_header.startswith('Basic '):
-        return False, "Formato de autorización inválido"
-
+def authenticate(request) -> tuple[bool, str]:
+    user, pwd = os.getenv("API_USERNAME"), os.getenv("API_PASSWORD")
+    if not user or not pwd:
+        return False, "Credenciales de API no configuradas"
+    hdr = request.headers.get("Authorization") if hasattr(request, "headers") else \
+          request.environ.get("HTTP_AUTHORIZATION")
+    if not hdr or not hdr.startswith("Basic "):
+        return False, "Header Authorization: Basic requerido"
     try:
-        decoded = base64.b64decode(auth_header[6:]).decode('utf-8')
-        username, password = decoded.split(':', 1)
+        u, p = base64.b64decode(hdr[6:]).decode().split(":", 1)
+        return (u == user and p == pwd,
+                "OK" if u == user and p == pwd else "Credenciales inválidas")
     except Exception as e:
-        return False, f"Error decodificando credenciales: {e}"
+        return False, f"Error autenticando: {e}"
 
-    if username == API_USERNAME and password == API_PASSWORD:
-        return True, "Autenticado correctamente"
-
-    return False, "Credenciales inválidas"
-
-# ------------- Historial en /tmp para evitar repeticiones ------------- #
-
-HISTORY_FILE = '/tmp/emoji_history.json'
-
-def load_emoji_history():
-    """Cargar historial de emojis generados"""
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, 'r') as f:
+# ──────────── Historial (para no repetir prompts) ────────────────
+def _load_history() -> dict:
+    if not os.path.exists(HISTORY_FILE):
+        return _EMPTY_HISTORY.copy()
+    try:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"generated_emojis": [], "total_generated": 0, "last_generated": None}
+    except (JSONDecodeError, ValueError):
+        return _EMPTY_HISTORY.copy()
 
-def save_emoji_history(history):
-    """Guardar historial"""
-    with open(HISTORY_FILE, 'w') as f:
-        json.dump(history, f, indent=2)
+def _save_history(hist: dict) -> None:
+    tmp_dir = os.path.dirname(HISTORY_FILE) or "."
+    with tempfile.NamedTemporaryFile("w", dir=tmp_dir,
+                                     delete=False, encoding="utf-8") as tmp:
+        json.dump(hist, tmp, indent=2, ensure_ascii=False)
+        tmp.flush(); os.fsync(tmp.fileno())
+    shutil.move(tmp.name, HISTORY_FILE)
 
-# ------------- Generación de prompts exclusivos CAUTOS ------------- #
-
-CAR_TYPES = [
-    "compact car", "sedan", "SUV", "electric car", "taxi style car",
-    "convertible", "hatchback", "sports car"
-]
-CAR_COLORS = [
-    "cobalt blue", "midnight black", "pearl white", "sunset orange",
-    "lime green", "ruby red", "graphite grey", "taxi yellow"
-]
-
-def generate_cautos_prompt():
-    """Generar un prompt automotriz único para CAUTOS que no se repita"""
-    history = load_emoji_history()
-    used_prompts = {e['prompt'] for e in history['generated_emojis']}
-
-    max_attempts = 50
-    for _ in range(max_attempts):
+# ──────────── Prompt exclusivo CAUTOS (sin repetición) ───────────
+def generate_cautos_prompt() -> str:
+    hist      = _load_history()
+    used      = set(hist["generated_prompts"])
+    max_retry = 50
+    for _ in range(max_retry):
         prompt = f"{random.choice(CAR_COLORS)} {random.choice(CAR_TYPES)} with CAUTOS logo"
-        if prompt not in used_prompts:
+        if prompt not in used:
+            hist["generated_prompts"].append(prompt)
+            _save_history(hist)
             return prompt
+    # Si todo se repitió, forzar uno nuevo con timestamp
+    prompt = f"{random.choice(CAR_COLORS)} {random.choice(CAR_TYPES)} with CAUTOS logo {int(time.time())}"
+    hist["generated_prompts"].append(prompt)
+    _save_history(hist)
+    return prompt
 
-    # Si se agotaron intentos, añadir sufijo único para asegurar no repetición
-    return f"{random.choice(CAR_COLORS)} {random.choice(CAR_TYPES)} with CAUTOS logo variant {int(time.time())}"
+def enhance_prompt(base: str) -> str:
+    main = f"Generate exactly ONE emoji representing {base}"
+    spec = "single character, centered composition, white background, 3D cartoon style"
+    neg  = "NOT multiple, NOT grid, NOT pattern, NOT collage"
+    struct = "round emoji design, isolated single character, ride-hailing automobile theme"
+    return f"{main}, {struct}, {spec}, {neg}"
 
-def enhance_emoji_prompt(base_prompt):
-    """
-    Crear prompt ULTRA específico para Replicate:
-    - Un solo emoji relacionado a CAUTOS (aplicación tipo Uber)
-    - Estilo 3D cartoon
-    - Fondo blanco
-    - Composición centrada
-    """
-    main_command = f"Generate exactly ONE emoji representing {base_prompt}"
-    specs = "single character, centered composition, white background, 3D cartoon style"
-    negations = (
-        "NOT multiple emojis, NOT pattern, NOT repeated elements, NOT grid, "
-        "NOT several emojis, NOT collage"
-    )
-    structure = "round emoji design, isolated character, automobile theme for ride-hailing"
-    return f"{main_command}, {structure}, {specs}, {negations}, solo character"
-
-# ------------- Llamada a la API de Replicate ------------- #
-
-def call_replicate_api(prompt, enhanced_prompt):
-    token = os.environ.get('REPLICATE_API_TOKEN')
+# ──────────── Replicate API ──────────────────────────────────────
+def call_replicate(prompt: str, enriched: str) -> str:
+    token = os.getenv("REPLICATE_API_TOKEN")
     if not token:
         raise Exception("REPLICATE_API_TOKEN no configurado")
 
     payload = {
-        "version": "5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
-        "input": {
-            "prompt": enhanced_prompt,
-            "aspect_ratio": "1:1",
-            "num_outputs": 1,
-            "num_inference_steps": 4,
-            "output_format": "webp"
-        }
+        "version": REPLICATE_VERSION,
+        "input": {"prompt": enriched,
+                  "aspect_ratio": "1:1",
+                  "num_outputs": 1,
+                  "num_inference_steps": 4,
+                  "output_format": "webp"}
     }
-
     req = urllib.request.Request(
         "https://api.replicate.com/v1/predictions",
         data=json.dumps(payload).encode(),
         headers={"Authorization": f"Token {token}", "Content-Type": "application/json"},
-        method="POST"
+        method="POST",
     )
-
     with urllib.request.urlopen(req) as r:
         if r.status != 201:
-            raise Exception(f"Error iniciando predicción: {r.status}")
-        result = json.loads(r.read().decode())
+            raise Exception(f"Error creando predicción: {r.status}")
+        pred_id = json.loads(r.read())["id"]
 
-    prediction_id = result["id"]
-
+    # Polling
     for _ in range(30):
         time.sleep(2)
-        status_req = urllib.request.Request(
-            f"https://api.replicate.com/v1/predictions/{prediction_id}",
-            headers={"Authorization": f"Token {token}"}
+        st = urllib.request.Request(
+            f"https://api.replicate.com/v1/predictions/{pred_id}",
+            headers={"Authorization": f"Token {token}"},
         )
-        with urllib.request.urlopen(status_req) as sr:
-            data = json.loads(sr.read().decode())
-
+        with urllib.request.urlopen(st) as sr:
+            data = json.loads(sr.read())
         if data["status"] == "succeeded":
-            output = data.get("output", [])
-            if output:
-                return output[0]
-            raise Exception("Salida vacía de Replicate")
-
+            out = data.get("output", [])
+            return out[0] if out else ""
         if data["status"] in ("failed", "canceled"):
-            raise Exception(f"Generación falló: {data.get('error', 'sin detalle')}")
+            raise Exception(data.get("error", "generación falló"))
+    raise Exception("Timeout esperando Replicate")
 
-    raise Exception("Timeout esperando respuesta de Replicate")
-
-# ------------- Handler HTTP ------------- #
-
+# ──────────── Handler HTTP ───────────────────────────────────────
 class handler(BaseHTTPRequestHandler):
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -566,104 +523,55 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
     def do_OPTIONS(self):
-        self.send_response(204)
-        self._cors()
-        self.end_headers()
+        self.send_response(204); self._cors(); self.end_headers()
 
-    # ----------- GET: un solo emoji ----------- #
+    # ---  GET: Genera UN emoji automotriz CAUTOS (único) ---
     def do_GET(self):
-        ok, msg = authenticate_request(self)
+        ok, msg = authenticate(self)
         if not ok:
-            self._json_response(401, {"error": "No autorizado", "message": msg})
-            return
-
+            self._json(401, {"error": "No autorizado", "message": msg}); return
         try:
-            base_prompt = generate_cautos_prompt()
-            enhanced_prompt = enhance_emoji_prompt(base_prompt)
-            image_url = call_replicate_api(base_prompt, enhanced_prompt)
-
-            record = {
-                "id": generate_emoji_id(),
-                "prompt": base_prompt,
-                "enhanced_prompt": enhanced_prompt,
-                "image_url": image_url,
-                "generated_at": datetime.utcnow().isoformat() + "Z",
-                "cost_usd": 0.003,
-                "generated_by": os.getenv("API_USERNAME", "unknown"),
-                "is_random": False
-            }
-
-            history = load_emoji_history()
-            history["generated_emojis"].append(record)
-            history["total_generated"] += 1
-            history["last_generated"] = record
-            save_emoji_history(history)
-
-            self._json_response(200, {
-                "success": True,
-                "emoji": record,
-                "total_generated": history["total_generated"],
-                "message": f'Emoji generado para CAUTOS con prompt: "{base_prompt}"'
-            })
+            bp = generate_cautos_prompt()
+            ep = enhance_prompt(bp)
+            url= call_replicate(bp, ep)
+            rec= {"id": generate_emoji_id(), "prompt": bp, "enhanced_prompt": ep,
+                  "image_url": url, "generated_at": datetime.utcnow().isoformat()+"Z",
+                  "cost_usd": 0.003, "generated_by": os.getenv("API_USERNAME","unknown")}
+            hist=_load_history()
+            hist["generated_emojis"].append(rec); hist["total_generated"]+=1
+            _save_history(hist)
+            self._json(200, {"success": True, "emoji": rec,
+                             "total_generated": hist["total_generated"]})
         except Exception as e:
-            self._json_response(500, {"error": "Error interno del servidor", "message": str(e)})
+            self._json(500, {"error": "Error interno del servidor", "message": str(e)})
 
-    # ----------- POST: varios emojis (máx 5) ----------- #
+    # ---  POST: Genera lote (máx 5) de emojis CAUTOS únicos ---
     def do_POST(self):
-        ok, msg = authenticate_request(self)
+        ok, msg = authenticate(self)
         if not ok:
-            self._json_response(401, {"error": "No autorizado", "message": msg})
-            return
-
+            self._json(401, {"error": "No autorizado", "message": msg}); return
         try:
             length = int(self.headers.get("Content-Length", 0))
-            data = json.loads(self.rfile.read(length) or "{}")
-            count = max(1, min(int(data.get("count", 1)), 5))
-
-            history = load_emoji_history()
-            generated = []
-
-            for i in range(count):
+            data   = json.loads(self.rfile.read(length) or "{}")
+            n      = max(1, min(int(data.get("count", 1)), 5))
+            hist   = _load_history(); out=[]
+            for _ in range(n):
                 try:
-                    bp = generate_cautos_prompt()
-                    ep = enhance_emoji_prompt(bp)
-                    url = call_replicate_api(bp, ep)
-
-                    rec = {
-                        "id": generate_emoji_id(),
-                        "prompt": bp,
-                        "enhanced_prompt": ep,
-                        "image_url": url,
-                        "generated_at": datetime.utcnow().isoformat() + "Z",
-                        "cost_usd": 0.003,
-                        "generated_by": os.getenv("API_USERNAME", "unknown"),
-                        "is_random": False,
-                        "batch_index": i + 1
-                    }
-
-                    generated.append(rec)
-                    history["generated_emojis"].append(rec)
-                    history["total_generated"] += 1
-                    history["last_generated"] = rec
+                    bp=generate_cautos_prompt(); ep=enhance_prompt(bp); url=call_replicate(bp,ep)
+                    rec={"id":generate_emoji_id(),"prompt":bp,"enhanced_prompt":ep,"image_url":url,
+                         "generated_at":datetime.utcnow().isoformat()+"Z","cost_usd":0.003}
+                    out.append(rec); hist["generated_emojis"].append(rec); hist["total_generated"]+=1
                 except Exception as e:
-                    print(f"Error generando emoji {i+1}: {e}")
-
-            save_emoji_history(history)
-
-            self._json_response(200, {
-                "success": True,
-                "emojis": generated,
-                "total_generated": len(generated),
-                "total_cost_usd": len(generated) * 0.003,
-                "message": f"Se generaron {len(generated)} emojis CAUTOS únicos"
-            })
+                    print("[WARN] Error generando emoji:", e)
+            _save_history(hist)
+            self._json(200, {"success": True, "emojis": out,
+                             "total_generated": len(out),
+                             "total_cost_usd": len(out)*0.003})
         except Exception as e:
-            self._json_response(500, {"error": "Error interno del servidor", "message": str(e)})
+            self._json(500, {"error": "Error interno del servidor", "message": str(e)})
 
-    # ----------- Helpers ----------- #
-    def _json_response(self, status, obj):
-        self.send_response(status)
-        self._cors()
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
+    # --- util ---
+    def _json(self, status:int, obj:dict):
+        self.send_response(status); self._cors()
+        self.send_header("Content-Type", "application/json"); self.end_headers()
         self.wfile.write(json.dumps(obj).encode())
