@@ -51,46 +51,48 @@ def authenticate_request(request):
 
 # --- PROMPTS ESPECÍFICOS CAUTOS (sustituye únicamente estas dos funciones) ---
 
+
 def generate_random_prompt():
     """
-    Genera un prompt automotriz único para CAUTOS:
-      - Color + tipo de vehículo + “with CAUTOS logo”
-      - Nunca repite prompts ya usados (se consulta el historial)
+    Genera una descripción base (color + tipo de vehículo + CAUTOS) 
+    asegurando que nunca se repita.
     """
-    # Colores y tipos de vehículo que lucen bien como emoji
-    CAR_COLORS = [
+    colors = [
         "cobalt blue", "sunset orange", "lime green", "ruby red",
         "graphite grey", "pearl white", "midnight black", "taxi yellow"
     ]
-    CAR_TYPES = [
+    vehicles = [
         "compact car", "sedan", "SUV", "electric car", "convertible",
         "hatchback", "sports car", "pickup"
     ]
 
-    history      = load_emoji_history()
-    used_prompts = {e["prompt"] for e in history["generated_emojis"]}
+    hist = load_emoji_history()
+    used = {e["prompt"] for e in hist["generated_emojis"]}
 
-    for _ in range(50):  # 50 intentos antes de forzar variante única
-        prompt = f"{random.choice(CAR_COLORS)} {random.choice(CAR_TYPES)} with CAUTOS logo"
-        if prompt not in used_prompts:
-            return prompt
+    for _ in range(50):
+        p = f"{random.choice(colors)} {random.choice(vehicles)} with CAUTOS logo"
+        if p not in used:
+            return p
 
-    # Si se agotaron los intentos, añade sufijo para asegurar unicidad
-    return f"{random.choice(CAR_COLORS)} {random.choice(CAR_TYPES)} with CAUTOS logo {int(time.time())}"
+    # forzar unicidad si ya existe todo
+    return f"{random.choice(colors)} {random.choice(vehicles)} with CAUTOS logo {int(time.time())}"
 
 
-def enhance_emoji_prompt(base_prompt):
+def enhance_emoji_prompt(base_prompt: str) -> str:
     """
-    Prompt ULTRA específico para Replicate:
-      - Exactamente UN emoji
-      - Tema automóviles / ride-hailing (CAUTOS)
-      - Fondo blanco, estilo cartoon 3D, composición centrada
+    Prompt ULTRA-específico para forzar 1 (y solo 1) emoji:
+      • Macro shot de un único personaje
+      • Fondo blanco o transparente
+      • Cartoon / 3D, iluminación suave
+      • Prohibido mosaicos, patrones o grupos
     """
-    main      = f"Generate exactly ONE emoji representing {base_prompt}"
-    structure = "round emoji design, isolated single character, ride-hailing automobile theme"
-    styles    = "single character, centered composition, white background, 3D cartoon style"
-    negate    = "NOT multiple emojis, NOT grid, NOT pattern, NOT collage, NOT repeated"
-    return f"{main}, {structure}, {styles}, {negate}"
+    return (
+        f"EXTREME CLOSE-UP macro shot of ONE single emoji: {base_prompt}. "
+        "Centered, full frame, no crop, white background, 3D cartoon render, soft shadows, "
+        "high resolution, vibrant colors. "
+        "Do NOT create multiple objects, NO tiled pattern, NO grid, NO collage, "
+        "NO duplicated elements — exactly ONE centred emoji character."
+    )
 
 def load_emoji_history():
     """Cargar historial desde archivo temporal"""
