@@ -380,6 +380,7 @@
 #             }
 #             self.wfile.write(json.dumps(error_response).encode())
 #             return
+
 # api/random.py - Endpoint para generar emojis aleatorios de CAUTOS
 from http.server import BaseHTTPRequestHandler
 import json
@@ -529,27 +530,28 @@ def save_emoji_history(history):
         print(f"Error guardando historial: {e}")
 
 def call_replicate_api(prompt, enhanced_prompt):
-    """Llamar a Replicate API con configuración optimizada para UN SOLO auto de alta calidad"""
+    """Llamar a Replicate API con configuración que funcione correctamente"""
     token = os.environ.get('REPLICATE_API_TOKEN')
     if not token:
         raise Exception('REPLICATE_API_TOKEN no configurado')
     
-    # Payload optimizado para generar UN SOLO auto de alta calidad
+    print(f"Token disponible: {'Sí' if token else 'No'}")
+    
+    # Payload simplificado pero efectivo
     payload = {
         "version": "5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
         "input": {
             "prompt": enhanced_prompt,
-            "negative_prompt": "multiple cars, many vehicles, car lot, parking, traffic, car collection, pattern, grid, tiled, repeated, duplicated, mosaic, collage, group of cars, fleet, convoy, multiple objects, busy scene, crowd, scattered, overlapping, complex, realistic photo, low quality, blurry, pixelated, distorted, noisy, artifacts, compression, jpeg artifacts, low resolution",
+            "negative_prompt": "multiple cars, many vehicles, car lot, parking, traffic, car collection, pattern, grid, tiled, repeated, duplicated, mosaic, collage, group of cars, fleet, convoy, multiple objects, busy scene, crowd, scattered, overlapping, complex, realistic photo, low quality, blurry, pixelated, distorted",
             "aspect_ratio": "1:1",
             "num_outputs": 1,
-            "num_inference_steps": 28,    # Aumentado significativamente para máxima calidad
-            "guidance_scale": 12,         # Aumentado para adherencia estricta al prompt
-            "output_format": "png",       # PNG para mejor calidad que webp
-            "output_quality": 100,        # Máxima calidad posible
-            "width": 1024,               # Resolución específica alta
-            "height": 1024
+            "num_inference_steps": 4,    # Volviendo a un valor que funciona
+            "output_format": "webp",     # Volviendo a webp que es más compatible
+            "output_quality": 90         # Calidad alta pero realista
         }
     }
+    
+    print(f"Payload preparado: {json.dumps(payload, indent=2)}")
     
     # Crear request
     data = json.dumps(payload).encode('utf-8')
@@ -563,44 +565,66 @@ def call_replicate_api(prompt, enhanced_prompt):
         method='POST'
     )
     
+    print("Enviando request inicial...")
+    
     # Enviar request inicial
-    with urllib.request.urlopen(req) as response:
-        if response.status != 201:
-            raise Exception(f'Error iniciando predicción: {response.status}')
-        result = json.loads(response.read().decode('utf-8'))
+    try:
+        with urllib.request.urlopen(req) as response:
+            if response.status != 201:
+                error_body = response.read().decode('utf-8')
+                print(f"Error en request inicial: {response.status} - {error_body}")
+                raise Exception(f'Error iniciando predicción: {response.status} - {error_body}')
+            result = json.loads(response.read().decode('utf-8'))
+            print(f"Request inicial exitoso: {result.get('id', 'Sin ID')}")
+    except Exception as e:
+        print(f"Error en urllib.request: {str(e)}")
+        raise
     
     prediction_id = result['id']
+    print(f"ID de predicción: {prediction_id}")
     
-    # Polling para obtener resultado con tiempo suficiente para alta calidad
-    for attempt in range(60):  # Más tiempo para procesar alta calidad
-        time.sleep(4)  # Más tiempo entre checks para procesamiento completo
+    # Polling para obtener resultado
+    for attempt in range(30):  # Timeout razonable
+        print(f"Intento {attempt + 1}/30 - Verificando estado...")
+        time.sleep(3)
         
         status_req = urllib.request.Request(
             f'https://api.replicate.com/v1/predictions/{prediction_id}',
             headers={'Authorization': f'Token {token}'}
         )
         
-        with urllib.request.urlopen(status_req) as status_response:
-            status_data = json.loads(status_response.read().decode('utf-8'))
-        
-        status = status_data['status']
-        
-        if status == 'succeeded':
-            if status_data.get('output') and len(status_data['output']) > 0:
-                image_url = status_data['output'][0]
-                if image_url and image_url != '{}':
-                    return image_url
-                else:
-                    raise Exception('URL de imagen inválida')
-            else:
-                raise Exception('Sin output en respuesta')
+        try:
+            with urllib.request.urlopen(status_req) as status_response:
+                status_data = json.loads(status_response.read().decode('utf-8'))
                 
-        elif status == 'failed':
-            error_msg = status_data.get('error', 'Error desconocido')
-            raise Exception(f'Generación falló: {error_msg}')
+            status = status_data['status']
+            print(f"Estado actual: {status}")
             
-        elif status == 'canceled':
-            raise Exception('Generación cancelada')
+            if status == 'succeeded':
+                if status_data.get('output') and len(status_data['output']) > 0:
+                    image_url = status_data['output'][0]
+                    if image_url and image_url != '{}':
+                        print(f"¡Éxito! URL: {image_url}")
+                        return image_url
+                    else:
+                        raise Exception('URL de imagen inválida')
+                else:
+                    raise Exception('Sin output en respuesta')
+                    
+            elif status == 'failed':
+                error_msg = status_data.get('error', 'Error desconocido')
+                print(f"Generación falló: {error_msg}")
+                raise Exception(f'Generación falló: {error_msg}')
+                
+            elif status == 'canceled':
+                print("Generación cancelada")
+                raise Exception('Generación cancelada')
+                
+        except Exception as e:
+            print(f"Error en polling intento {attempt + 1}: {str(e)}")
+            if attempt == 29:  # Último intento
+                raise
+            continue
     
     raise Exception('Timeout esperando resultado')
 
@@ -633,12 +657,19 @@ class handler(BaseHTTPRequestHandler):
             return
         
         try:
+            print("Iniciando generación de emoji único...")
+            
             # Generar prompt aleatorio específico para CAUTOS
             random_prompt = generate_random_prompt()
+            print(f"Prompt base: {random_prompt}")
+            
             enhanced_prompt = enhance_emoji_prompt(random_prompt)
+            print(f"Prompt mejorado generado, longitud: {len(enhanced_prompt)}")
             
             # Generar emoji
+            print("Enviando request a Replicate...")
             image_url = call_replicate_api(random_prompt, enhanced_prompt)
+            print(f"Imagen generada: {image_url}")
             
             # Crear registro
             emoji_record = {
@@ -659,6 +690,8 @@ class handler(BaseHTTPRequestHandler):
             history['total_generated'] += 1
             history['last_generated'] = emoji_record
             save_emoji_history(history)
+            
+            print("Emoji generado y guardado exitosamente")
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -726,14 +759,23 @@ class handler(BaseHTTPRequestHandler):
             generated_emojis = []
             history = load_emoji_history()
             
+            errors = []  # Para tracking de errores
+            
             for i in range(count):
                 try:
+                    print(f"Iniciando generación {i+1} de {count}")
+                    
                     # Generar prompt aleatorio específico para CAUTOS
                     random_prompt = generate_random_prompt()
+                    print(f"Prompt generado: {random_prompt}")
+                    
                     enhanced_prompt = enhance_emoji_prompt(random_prompt)
+                    print(f"Prompt mejorado: {enhanced_prompt[:100]}...")
                     
                     # Generar emoji
+                    print("Llamando a Replicate API...")
                     image_url = call_replicate_api(random_prompt, enhanced_prompt)
+                    print(f"URL generada: {image_url}")
                     
                     # Crear registro
                     emoji_record = {
@@ -756,12 +798,16 @@ class handler(BaseHTTPRequestHandler):
                     history['total_generated'] += 1
                     history['last_generated'] = emoji_record
                     
+                    print(f"Emoji {i+1} generado exitosamente")
+                    
                     # Pausa entre generaciones para evitar rate limiting
                     if i < count - 1:
                         time.sleep(2)
                     
                 except Exception as emoji_error:
-                    print(f"Error generando emoji {i+1}: {emoji_error}")
+                    error_msg = f"Error generando emoji {i+1}: {str(emoji_error)}"
+                    print(error_msg)
+                    errors.append(error_msg)
                     continue
             
             # Guardar historial
@@ -773,13 +819,14 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             
             response = {
-                'success': True,
+                'success': len(generated_emojis) > 0,
                 'emojis': generated_emojis,
                 'total_generated': len(generated_emojis),
                 'total_cost_usd': len(generated_emojis) * 0.003,
                 'is_random': True,
                 'theme': 'CAUTOS_transport',
-                'message': f'Se generaron {len(generated_emojis)} emojis CAUTOS'
+                'message': f'Se generaron {len(generated_emojis)} emojis CAUTOS',
+                'errors': errors if errors else None  # Incluir errores si los hay
             }
             
             self.wfile.write(json.dumps(response).encode())
